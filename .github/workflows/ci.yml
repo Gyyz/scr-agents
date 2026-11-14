@@ -8,7 +8,7 @@ on:
 
 jobs:
   lint:
-    runs-on: [linux-x64-small]
+    runs-on: ubuntu-latest
     # Normally under a minute. The limit stops a stalled download from holding a
     # runner for GitHub's 6-hour default; slow PyPI downloads have taken up to
     # 22 minutes without hanging, so it is set well above that.
@@ -25,7 +25,7 @@ jobs:
       - run: uv run --frozen ruff format --check .
 
   typecheck:
-    runs-on: [linux-x64-small]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -38,7 +38,7 @@ jobs:
       - run: uv run --frozen mypy .
 
   test:
-    runs-on: [linux-x64-small]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -67,7 +67,7 @@ jobs:
           exit "${rc:-0}"
 
   docs:
-    runs-on: [linux-x64-small]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
