@@ -1,0 +1,162 @@
+# Seed knowledge base. Extend freely; the lookup is keyword based.
+entries:
+  - id: CWE-78
+    standard: CWE
+    title: OS Command Injection
+    summary: Untrusted input reaches a shell or command interpreter, letting an attacker run arbitrary commands.
+    languages: [python, c, cpp, go, javascript, typescript, java, ruby, php, shell]
+    keywords: [command, injection, shell, system, subprocess, exec, popen, os.system, shell=True]
+    mitigations: [Use argv lists instead of shell strings, Validate and allowlist input, Avoid system() and shell=True]
+    references: [https://cwe.mitre.org/data/definitions/78.html]
+  - id: CWE-79
+    standard: CWE
+    title: Cross-site Scripting (XSS)
+    summary: Untrusted data is written into a web page without proper escaping.
+    languages: [javascript, typescript, python, java, php, ruby]
+    keywords: [xss, innerHTML, html, escape, template, dangerouslySetInnerHTML]
+    mitigations: [Escape output by context, Use textContent or safe templating]
+    references: [https://cwe.mitre.org/data/definitions/79.html]
+  - id: CWE-89
+    standard: CWE
+    title: SQL Injection
+    summary: SQL is built by concatenating or formatting untrusted input.
+    languages: [python, java, go, javascript, typescript, php, ruby, csharp]
+    keywords: [sql, injection, query, execute, format, concatenation, f-string, prepared, parameterized]
+    mitigations: [Use parameterized queries, Never format SQL with user input]
+    references: [https://cwe.mitre.org/data/definitions/89.html]
+  - id: CWE-95
+    standard: CWE
+    title: Eval Injection
+    summary: Untrusted input is passed to eval/exec or an equivalent dynamic code evaluator.
+    languages: [python, javascript, typescript, ruby, php]
+    keywords: [eval, exec, dynamic, code, injection, Function]
+    mitigations: [Do not evaluate untrusted strings, Use ast.literal_eval or a parser]
+    references: [https://cwe.mitre.org/data/definitions/95.html]
+  - id: CWE-119
+    standard: CWE
+    title: Improper Restriction of Operations within the Bounds of a Memory Buffer
+    summary: Reads or writes outside the intended buffer boundaries.
+    languages: [c, cpp]
+    keywords: [buffer, bounds, memcpy, memory, overflow, overread]
+    mitigations: [Check lengths before copying, Use bounded APIs]
+    references: [https://cwe.mitre.org/data/definitions/119.html]
+  - id: CWE-120
+    standard: CWE
+    title: Classic Buffer Overflow
+    summary: Copying input into a buffer without checking the size.
+    languages: [c, cpp]
+    keywords: [buffer, overflow, strcpy, strcat, sprintf, gets, scanf, stack, bounds]
+    mitigations: [Use strlcpy/snprintf with explicit sizes, Validate input length]
+    references: [https://cwe.mitre.org/data/definitions/120.html]
+  - id: CWE-125
+    standard: CWE
+    title: Out-of-bounds Read
+    summary: Reading past the end (or before the start) of a buffer.
+    languages: [c, cpp]
+    keywords: [out-of-bounds, read, index, array, bounds, overread]
+    mitigations: [Validate indexes against length, Prefer bounds-checked accessors]
+    references: [https://cwe.mitre.org/data/definitions/125.html]
+  - id: CWE-134
+    standard: CWE
+    title: Use of Externally-Controlled Format String
+    summary: A format string comes from untrusted input.
+    languages: [c, cpp]
+    keywords: [format, string, printf, syslog, "%n"]
+    mitigations: [Always pass a literal format string]
+    references: [https://cwe.mitre.org/data/definitions/134.html]
+  - id: CWE-190
+    standard: CWE
+    title: Integer Overflow or Wraparound
+    summary: Arithmetic exceeds the representable range, often before an allocation or index.
+    languages: [c, cpp, go, rust, java]
+    keywords: [integer, overflow, wraparound, multiplication, size, allocation, malloc, length]
+    mitigations: [Check for overflow before multiplying sizes, Use checked arithmetic]
+    references: [https://cwe.mitre.org/data/definitions/190.html]
+  - id: CWE-242
+    standard: CWE
+    title: Use of Inherently Dangerous Function
+    summary: Functions like gets() cannot be used safely.
+    languages: [c, cpp]
+    keywords: [gets, dangerous, function]
+    mitigations: [Use fgets with a size]
+    references: [https://cwe.mitre.org/data/definitions/242.html]
+  - id: CWE-295
+    standard: CWE
+    title: Improper Certificate Validation
+    summary: TLS certificate checks are disabled or incomplete.
+    languages: [python, go, javascript, typescript, java]
+    keywords: [tls, ssl, certificate, verify, InsecureSkipVerify, verify=False]
+    mitigations: [Never disable verification in production]
+    references: [https://cwe.mitre.org/data/definitions/295.html]
+  - id: CWE-328
+    standard: CWE
+    title: Use of Weak Hash
+    summary: MD5 or SHA-1 used where collision resistance matters.
+    languages: [python, go, java, javascript, typescript]
+    keywords: [md5, sha1, weak, hash, digest]
+    mitigations: [Use SHA-256 or better; use a password hash for passwords]
+    references: [https://cwe.mitre.org/data/definitions/328.html]
+  - id: CWE-338
+    standard: CWE
+    title: Use of Cryptographically Weak PRNG
+    summary: rand()/random used for security-sensitive values.
+    languages: [c, cpp, python, go, javascript]
+    keywords: [rand, random, prng, token, secret, seed]
+    mitigations: [Use a CSPRNG such as secrets or crypto/rand]
+    references: [https://cwe.mitre.org/data/definitions/338.html]
+  - id: CWE-362
+    standard: CWE
+    title: Race Condition
+    summary: Concurrent access to shared state without proper synchronization.
+    languages: [c, cpp, go, java, python, rust]
+    keywords: [race, concurrency, lock, mutex, thread, toctou, atomic]
+    mitigations: [Guard shared state, Avoid check-then-act on files]
+    references: [https://cwe.mitre.org/data/definitions/362.html]
+  - id: CWE-377
+    standard: CWE
+    title: Insecure Temporary File
+    summary: Predictable temporary file names allow symlink attacks.
+    languages: [python, c, cpp, shell]
+    keywords: [tempfile, mktemp, temporary, symlink]
+    mitigations: [Use mkstemp or tempfile.NamedTemporaryFile]
+    references: [https://cwe.mitre.org/data/definitions/377.html]
+  - id: CWE-416
+    standard: CWE
+    title: Use After Free
+    summary: Memory is used after it has been released.
+    languages: [c, cpp]
+    keywords: [use-after-free, free, dangling, pointer, lifetime]
+    mitigations: [Null pointers after free, Use RAII / smart pointers]
+    references: [https://cwe.mitre.org/data/definitions/416.html]
+  - id: CWE-476
+    standard: CWE
+    title: NULL Pointer Dereference
+    summary: A pointer that may be NULL is dereferenced.
+    languages: [c, cpp, go, java]
+    keywords: ["null", "nil", dereference, pointer, nullptr, "None"]
+    mitigations: [Check return values, Validate pointers before use]
+    references: [https://cwe.mitre.org/data/definitions/476.html]
+  - id: CWE-502
+    standard: CWE
+    title: Deserialization of Untrusted Data
+    summary: Untrusted bytes are deserialized into objects, often enabling code execution.
+    languages: [python, java, ruby, php, csharp]
+    keywords: [pickle, deserialization, yaml.load, marshal, unserialize, ObjectInputStream]
+    mitigations: [Use safe loaders, Never unpickle untrusted data]
+    references: [https://cwe.mitre.org/data/definitions/502.html]
+  - id: CWE-787
+    standard: CWE
+    title: Out-of-bounds Write
+    summary: Writing past the end of a buffer.
+    languages: [c, cpp]
+    keywords: [out-of-bounds, write, overflow, buffer, index]
+    mitigations: [Validate lengths and indexes]
+    references: [https://cwe.mitre.org/data/definitions/787.html]
+  - id: CWE-798
+    standard: CWE
+    title: Use of Hard-coded Credentials
+    summary: Passwords, keys or tokens embedded in source.
+    languages: []
+    keywords: [hardcoded, credential, password, secret, api key, token, embedded]
+    mitigations: [Load secrets from the environment or a vault]
+    references: [https://cwe.mitre.org/data/definitions/798.html]

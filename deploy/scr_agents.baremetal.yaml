@@ -1,0 +1,44 @@
+# scr_agents settings for the 6x RTX 6000 Ada server, bare metal (deploy/start_vllm.sh runs the two
+# vLLM instances on localhost:8000 and localhost:8001).
+llm:
+  mode: local
+  local:
+    base_url: http://127.0.0.1:8000/v1
+    model: google/gemma-4-31B-it
+    validator_base_url: http://127.0.0.1:8001/v1
+    validator_model: meta-llama/Llama-3.3-70B-Instruct
+    temperature: 0.2
+    max_tokens: 8000
+    timeout_s: 900
+    json_repair: true
+    extra_body: {}
+  parallel_subagents: 3
+  parallel_validations: 6
+  max_findings_to_validate: 40
+  max_turns: 30
+
+scanners:
+  enabled: [builtin, ruff, bandit, semgrep, cppcheck, gosec]
+  only_changed_lines: true
+  timeout_s: 600
+  semgrep_config: auto             # needs the semgrep registry; point at a local rules dir for offline
+
+shell:
+  allowed_binaries: [python, python3, pytest, make, cmake, ctest, gcc, cc, clang, g++, cargo, go,
+                     npm, node, ls, cat, head, tail, grep, rg, git, wc, diff, find]
+  timeout_s: 600
+  max_output_chars: 30000
+
+bench:
+  runner: local                    # run scr_agents inside a container or VM for real isolation
+  timeout_s: 1800
+
+output_dir: out
+projects_dir: out/projects
+max_diff_chars: 60000
+whole_repo_max_files: 800
+
+web:
+  allowed_hosts: ["*"]           # the console is reached by the server's name or IP; narrow this to it
+  allow_local_paths: false       # the API takes git URLs (and paths under projects_dir) only
+  url_schemes: [https]

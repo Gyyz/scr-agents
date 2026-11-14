@@ -1,0 +1,25 @@
+# Build context for deploy/Dockerfile (context: the repository root). Keep local state out of the image.
+.git
+.venv
+.env
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/.DS_Store
+data/
+docs/_build/
+mlruns/
+mlartifacts/
+mlflow.db
+out/
+deploy/models/
+deploy/data/
+deploy/generated/
+# local config with LAN addresses
+/scr_agents.yaml
+# MCP servers installed on this machine (built for its OS); the image installs its own
+mcp_servers/*/server/
+# console state: which MCP servers and skills are on; an image starts from the shipped defaults
+mcp_servers/config.yaml
+src/scr_agents/skills/config.yaml

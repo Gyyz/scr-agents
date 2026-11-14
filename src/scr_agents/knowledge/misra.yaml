@@ -1,0 +1,41 @@
+entries:
+  - id: MISRA-C-2012-21.3
+    standard: MISRA
+    title: The memory allocation and deallocation functions of <stdlib.h> shall not be used
+    summary: Dynamic allocation is forbidden in MISRA C for safety-critical code.
+    languages: [c]
+    keywords: [malloc, free, calloc, realloc, dynamic, allocation]
+    mitigations: [Use static allocation]
+    references: []
+  - id: MISRA-C-2012-21.6
+    standard: MISRA
+    title: The Standard Library input/output functions shall not be used
+    summary: stdio functions are banned in MISRA C.
+    languages: [c]
+    keywords: [printf, scanf, stdio, fopen]
+    mitigations: [Use project-specific I/O abstractions]
+    references: []
+  - id: MISRA-C-2012-17.7
+    standard: MISRA
+    title: The value returned by a function having non-void return type shall be used
+    summary: Ignoring return values hides errors.
+    languages: [c]
+    keywords: [return, value, ignored, unused, error]
+    mitigations: [Check or explicitly cast to void]
+    references: []
+  - id: MISRA-C-2012-10.1
+    standard: MISRA
+    title: Operands shall not be of an inappropriate essential type
+    summary: Implicit conversions between essential types are restricted.
+    languages: [c]
+    keywords: [type, conversion, implicit, essential, cast]
+    mitigations: [Use explicit casts of matching essential type]
+    references: []
+  - id: MISRA-C-2012-15.5
+    standard: MISRA
+    title: A function should have a single point of exit at the end
+    summary: Multiple return statements are advisory-prohibited.
+    languages: [c]
+    keywords: [return, exit, single, function, style]
+    mitigations: [Restructure control flow]
+    references: []

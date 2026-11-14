@@ -1,0 +1,45 @@
+# Hooks run the ruff/mypy versions pinned in uv.lock, so pre-commit and CI
+# can never disagree about tool versions.
+#
+# `pre-commit install` wires up both the commit and push stages (see
+# default_install_hook_types). Note these are client-side guardrails only;
+# real enforcement is the branch protection rule on the server.
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit]
+
+repos:
+  - repo: local
+    hooks:
+      - id: no-commit-to-main
+        name: block commits on main
+        entry: bash -c 'if [ "$(git symbolic-ref --short -q HEAD)" = "main" ]; then echo "Commits to main are not allowed - use a feature/fix/refactor branch."; exit 1; fi'
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: ruff-check
+        name: ruff check
+        entry: uv run --frozen ruff check --fix
+        language: system
+        types_or: [python, pyi]
+
+      - id: ruff-format
+        name: ruff format
+        entry: uv run --frozen ruff format
+        language: system
+        types_or: [python, pyi]
+
+      - id: mypy
+        name: mypy
+        entry: uv run --frozen mypy
+        language: system
+        types_or: [python, pyi]
+        pass_filenames: false
+
+      - id: no-push-to-main
+        name: block pushes to main
+        stages: [pre-push]
+        entry: bash -c 'if [ "$PRE_COMMIT_REMOTE_BRANCH" = "refs/heads/main" ]; then echo "Pushes to main are not allowed - open a pull request instead."; exit 1; fi'
+        language: system
+        pass_filenames: false
+        always_run: true

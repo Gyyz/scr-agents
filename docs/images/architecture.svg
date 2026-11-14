@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 530" role="img" aria-labelledby="t d" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="t">How a review runs</title>
+  <desc id="d">A review request is checked out, analysed by the code graph, the scanners and the test bench, passed through the safety filter, planned, reviewed by three reviewers in parallel, merged, re-checked by the validator and written to reports. Pending findings can start another round from the planner.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#5b6470"/>
+    </marker>
+    <style>
+      .bg { fill: #fbfaf7; stroke: #d9d5cc; }
+      .box { fill: #ffffff; stroke: #b9b3a6; stroke-width: 1.2; }
+      .in { fill: #eef1f5; stroke: #9aa5b4; }
+      .an { fill: #e6f3ee; stroke: #6fae95; }
+      .guard { fill: #fbeceb; stroke: #d98c86; }
+      .agent { fill: #eeeafb; stroke: #8f7fdc; }
+      .val { fill: #fdf1dc; stroke: #d9a441; }
+      .out { fill: #e8f0fb; stroke: #7da3d9; }
+      .h { font-size: 14px; font-weight: 650; fill: #1c2026; text-anchor: middle; }
+      .s { font-size: 11.5px; fill: #4a525d; text-anchor: middle; }
+      .lab { font-size: 11.5px; fill: #5b6470; }
+      .cap { font-size: 11px; font-weight: 650; letter-spacing: .08em; fill: #7a828d; }
+      .line { stroke: #5b6470; stroke-width: 1.4; fill: none; }
+      .loop { stroke: #8f7fdc; stroke-width: 1.4; fill: none; stroke-dasharray: 5 4; }
+    </style>
+  </defs>
+  <rect class="bg" x="0.5" y="0.5" width="1079" height="529" rx="14"/>
+
+  <text class="cap" x="30" y="30">INPUT AND ANALYSIS</text>
+  <rect class="box in" x="30" y="42" width="240" height="70" rx="9"/>
+  <text class="h" x="150" y="66">Review request</text>
+  <text class="s" x="150" y="84">repository path or URL</text>
+  <text class="s" x="150" y="100">commit range or whole tree</text>
+
+  <rect class="box in" x="300" y="42" width="210" height="70" rx="9"/>
+  <text class="h" x="405" y="66">Checkouts</text>
+  <text class="s" x="405" y="84">base and head commits,</text>
+  <text class="s" x="405" y="100">exported with git archive</text>
+
+  <rect class="box an" x="540" y="42" width="160" height="70" rx="9"/>
+  <text class="h" x="620" y="66">Code graph</text>
+  <text class="s" x="620" y="84">changed symbols and</text>
+  <text class="s" x="620" y="100">the code they reach</text>
+
+  <rect class="box an" x="715" y="42" width="160" height="70" rx="9"/>
+  <text class="h" x="795" y="66">Static scanners</text>
+  <text class="s" x="795" y="84">ruff, bandit, semgrep,</text>
+  <text class="s" x="795" y="100">built-in rules</text>
+
+  <rect class="box an" x="890" y="42" width="160" height="70" rx="9"/>
+  <text class="h" x="970" y="66">Test bench</text>
+  <text class="s" x="970" y="84">the project's tests on</text>
+  <text class="s" x="970" y="100">base and on head</text>
+
+  <path class="line" d="M270 77 H298" marker-end="url(#arrow)"/>
+  <path class="line" d="M510 77 H538" marker-end="url(#arrow)"/>
+
+  <rect class="box guard" x="30" y="134" width="1020" height="38" rx="9"/>
+  <text class="h" x="150" y="158">Safety filter</text>
+  <text class="s" x="640" y="158">repository text, pull request text, tool results and MCP results reach a prompt only as wrapped, untrusted data</text>
+  <path class="line" d="M405 112 V132" marker-end="url(#arrow)"/>
+  <path class="line" d="M795 112 V132" marker-end="url(#arrow)"/>
+
+  <text class="cap" x="30" y="202">AGENTS</text>
+  <rect class="box agent" x="30" y="248" width="150" height="70" rx="9"/>
+  <text class="h" x="105" y="272">Planner</text>
+  <text class="s" x="105" y="290">what to look at,</text>
+  <text class="s" x="105" y="306">which files first</text>
+
+  <rect class="box agent" x="220" y="214" width="250" height="40" rx="9"/>
+  <text class="h" x="345" y="239">Bugs reviewer</text>
+  <rect class="box agent" x="220" y="263" width="250" height="40" rx="9"/>
+  <text class="h" x="345" y="288">Vulnerabilities reviewer</text>
+  <rect class="box agent" x="220" y="312" width="250" height="40" rx="9"/>
+  <text class="h" x="345" y="337">Style reviewer</text>
+
+  <rect class="box" x="510" y="248" width="150" height="70" rx="9"/>
+  <text class="h" x="585" y="272">Merge and rank</text>
+  <text class="s" x="585" y="290">duplicates joined,</text>
+  <text class="s" x="585" y="306">scanner hits absorbed</text>
+
+  <rect class="box val" x="700" y="248" width="150" height="70" rx="9"/>
+  <text class="h" x="775" y="272">Validator</text>
+  <text class="s" x="775" y="290">a second model checks</text>
+  <text class="s" x="775" y="306">each finding by running it</text>
+
+  <rect class="box out" x="890" y="248" width="160" height="70" rx="9"/>
+  <text class="h" x="970" y="272">Reports</text>
+  <text class="s" x="970" y="290">one HTML page per report,</text>
+  <text class="s" x="970" y="306">plus JSON and Markdown</text>
+
+  <path class="line" d="M105 172 V246" marker-end="url(#arrow)"/>
+  <path class="line" d="M180 283 H218" marker-end="url(#arrow)"/>
+  <path class="line" d="M200 283 V234 H218" marker-end="url(#arrow)"/>
+  <path class="line" d="M200 283 V332 H218" marker-end="url(#arrow)"/>
+  <path class="line" d="M470 234 H490 V283" />
+  <path class="line" d="M470 332 H490 V283" />
+  <path class="line" d="M470 283 H508" marker-end="url(#arrow)"/>
+  <path class="line" d="M660 283 H698" marker-end="url(#arrow)"/>
+  <path class="line" d="M850 283 H888" marker-end="url(#arrow)"/>
+
+  <path class="loop" d="M775 318 V384 H105 V320" marker-end="url(#arrow)"/>
+  <text class="lab" x="440" y="402" text-anchor="middle">next round: the findings still pending are reviewed again, with both reports as context (the person decides; 3 rounds by default)</text>
+
+  <text class="cap" x="30" y="440">AVAILABLE TO THE AGENTS</text>
+  <rect class="box" x="30" y="452" width="240" height="58" rx="9"/>
+  <text class="h" x="150" y="476">Sandboxed shell</text>
+  <text class="s" x="150" y="494">allowlisted binaries only, no shell</text>
+  <rect class="box" x="290" y="452" width="240" height="58" rx="9"/>
+  <text class="h" x="410" y="476">MCP servers</text>
+  <text class="s" x="410" y="494">web search and servers you add</text>
+  <rect class="box" x="550" y="452" width="240" height="58" rx="9"/>
+  <text class="h" x="670" y="476">Skills</text>
+  <text class="s" x="670" y="494">review guidance written by operators</text>
+  <rect class="box" x="810" y="452" width="240" height="58" rx="9"/>
+  <text class="h" x="930" y="476">Project memory</text>
+  <text class="s" x="930" y="494">notes kept in the reviewed repository</text>
+</svg>

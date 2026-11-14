@@ -1,0 +1,49 @@
+# scr_agents settings for the 6x RTX 6000 Ada server (docker compose layout; hostnames are the services).
+# For bare metal use deploy/scr_agents.baremetal.yaml (same content, localhost ports 8000/8001).
+llm:
+  mode: local
+  local:
+    base_url: http://vllm-reviewer:8000/v1
+    model: google/gemma-4-31B-it
+    validator_base_url: http://vllm-validator:8000/v1
+    validator_model: meta-llama/Llama-3.3-70B-Instruct     # a different model re-checks every finding
+    temperature: 0.2
+    max_tokens: 8000
+    timeout_s: 900
+    json_repair: true
+    extra_body: {}
+  parallel_subagents: 3            # the three subagents always run together
+  parallel_validations: 6          # validator requests batched by vLLM on the 4-GPU instance
+  max_findings_to_validate: 40
+  max_turns: 30
+
+scanners:
+  enabled: [builtin, ruff, bandit, semgrep, cppcheck]
+  only_changed_lines: true
+  timeout_s: 600
+  semgrep_config: /opt/semgrep-rules   # baked into the image; no registry access needed
+
+shell:
+  allowed_binaries: [python, python3, pytest, make, cmake, ctest, gcc, cc, clang, g++, cargo, go,
+                     npm, node, ls, cat, head, tail, grep, rg, git, wc, diff, find]
+  timeout_s: 600
+  max_output_chars: 30000
+
+bench:
+  runner: local                    # the scr_agents container is the sandbox (cap_drop ALL, cpu/mem limits)
+  timeout_s: 1800
+
+safety:
+  max_chars: 80000
+  redact_secrets: true
+  block_on_injection: false
+
+output_dir: /data/out
+projects_dir: /data/projects
+max_diff_chars: 60000              # 65k-token context on both models leaves room for tools and output
+whole_repo_max_files: 800
+
+web:
+  allowed_hosts: ["*"]           # the console is reached by the server's name or IP; narrow this to it
+  allow_local_paths: false       # the API takes git URLs (and paths under projects_dir) only
+  url_schemes: [https]

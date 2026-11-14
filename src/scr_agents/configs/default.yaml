@@ -1,0 +1,133 @@
+# Packaged defaults. Copy to scr_agents.yaml in your project and pass --config to override.
+llm:
+  mode: auto                     # auto | local | anthropic | offline
+                                 # auto = local server if reachable, otherwise offline. The online
+                                 # Anthropic API is used only when mode is explicitly "anthropic".
+  local:                         # any OpenAI-compatible server: vLLM, SGLang, llama.cpp, Ollama
+    base_url: http://127.0.0.1:8000/v1
+    api_key: EMPTY
+    model: ""                    # empty = first served model matching preferred_models (else first listed)
+    preferred_models: [gemma-4-31b, gemma4-31b, gemma-4, gemma4, llama-3.3-70b, llama-3.1-70b, llama-3-70b, llama-3]
+                                 # gemma4-31b-it is the GPUStack name for Gemma 4 31B
+    validator_model: ""          # empty = same model; point at a second served model for independence
+    validator_base_url: ""       # empty = same server
+    temperature: 0.2
+    max_tokens: 8000
+    timeout_s: 600
+    json_repair: true            # re-ask with response_format (guided decoding) if the final answer is not JSON
+    context_window: 65536        # tokens; fallback when the server does not report max_model_len. Old tool results are compacted when close to it
+    cache_metrics_interval_s: 5  # read the servers' prefix (KV) cache counters from /metrics during a run; 0 = off.
+                                 # Per-call cached tokens also need vLLM --enable-prompt-tokens-details
+    extra_body: {}               # passed through, e.g. {chat_template_kwargs: {enable_thinking: false}}
+  reviewer_model: claude-opus-5-5      # mode: anthropic only
+  validator_model: claude-sonnet-5-5   # mode: anthropic only
+  effort: high
+  validator_effort: high
+  max_tokens: 16000
+  max_turns: 24
+  server_fallbacks: true
+  parallel_subagents: 3
+  parallel_validations: 3
+  max_findings_to_validate: 20
+  max_style_findings_to_validate: 5   # style/naming findings: read-only validator, at most this many per run
+  style_validation_turns: 6
+
+scanners:
+  enabled: [builtin, ruff, bandit, semgrep, cppcheck, gosec]
+  only_changed_lines: true
+  timeout_s: 300
+  semgrep_config: auto
+
+shell:
+  # Only these binaries may be executed by agents (basename match). No shells on purpose. Build and
+  # test tools (make, cmake, cargo, go, npm) run the reviewed project's own code by design; contain
+  # them with the container in deploy/, not with this list.
+  allowed_binaries: [python, python3, pytest, make, cmake, gcc, cc, clang, g++, cargo, go,
+                     npm, node, ls, cat, head, tail, grep, rg, git, wc, diff, find]
+  timeout_s: 120                 # upper bound; a tool call asking for more is clamped to it
+  max_output_chars: 20000
+  # Per-binary flags that would turn a listed tool into a shell or let it leave the worktree.
+  denied_args:
+    python: [-c]
+    python3: [-c]
+    node: [-e, --eval, -p, --print, -i, --interactive]
+    find: [-exec, -execdir, -ok, -okdir, -delete, -fprint, -fprint0, -fprintf, -fls]
+    git: [-c, -C, --exec-path, --git-dir, --work-tree, --config-env, --namespace]
+    rg: [--pre, --pre-glob]
+  # Binaries listed here may only run these subcommands (read-only git, no npm exec).
+  allowed_subcommands:
+    git: [log, show, diff, status, blame, grep, ls-files, ls-tree, rev-parse, cat-file, describe,
+          rev-list, shortlog, name-rev]
+    npm: [test, run, run-script, ci, install, ls]
+  python_modules: [pytest, unittest, py_compile, compileall, doctest]   # python -m <module>
+  # Absolute paths in arguments must be inside the sandbox root or under one of these prefixes.
+  allowed_path_prefixes: [/usr, /opt, /lib, /lib64, /bin, /sbin, /dev/null, /nix, /Library/Developer]
+  # Environment variables copied into the sandbox. HOME is never copied: each sandbox gets its own.
+  env_passthrough: [PATH, LANG, LC_ALL, TMPDIR, VIRTUAL_ENV, RUSTUP_HOME, GOPATH, GOCACHE, GOMODCACHE]
+
+bench:
+  runner: local                  # local | docker | qemu (only local is implemented in v0)
+  build_cmd: null                # e.g. [make, -j4]; null = auto-detect
+  test_cmd: null                 # e.g. [make, test]; null = auto-detect
+  timeout_s: 600
+
+# Web search for the reviewer subagents and the validator: one tool of one MCP server, results filtered
+# to the allowlist and sanitised. Usually chosen in the console (Configure -> MCP servers -> "web search"),
+# which binds it to a server in mcp_servers/; set mcp_server here to bind a server from mcp_servers instead.
+web_search:
+  enabled: false
+  mcp_server: null               # e.g. websearch (an entry in mcp_servers); the console's choice wins
+  tool_name: get-web-search-summaries   # the server's search tool (returns titles, URLs, snippets)
+  query_arg: query               # parameter that carries the query
+  limit_arg: limit               # parameter that carries the result count
+  allowlist: [cwe.mitre.org, nvd.nist.gov, owasp.org, docs.python.org, wiki.sei.cmu.edu,
+              github.com, en.cppreference.com, man7.org]   # result hosts kept; stays a server-side decision
+  max_results: 5
+
+# MCP servers as folders: mcp_servers/<server>/mcp.yaml (how it starts) and mcp_servers/config.yaml (which are on, which
+# agents get them). Switch them on in the console (Configure -> MCP servers); see mcp_servers/README.md.
+mcp_servers_dir: mcp_servers     # relative to the working directory
+
+# Extra stdio MCP servers defined here are always on. Their tools become mcp_<server>_<tool> for the
+# subagents and the validator (or only the `components` listed) and are wrapped by the safety filter.
+mcp_servers: []
+#  - name: cvedb
+#    command: uvx
+#    args: ["some-cve-mcp-server"]
+#    components: [vulnerabilities, validator]
+
+web:                             # `scr-agents serve`
+  token: ""                      # bearer token for every /api route; empty = generated at start and printed.
+                                 # Env SCR_AGENTS_TOKEN overrides. Browsers get it from the printed ?token= URL.
+  allowed_hosts: [localhost, 127.0.0.1, "[::1]"]   # Host header allowlist; add the server name for remote access
+  allow_local_paths: false       # the API accepts URLs (and paths under projects_dir) unless this is true
+  url_schemes: [https]           # clone URL schemes the API accepts
+
+safety:
+  max_chars: 60000
+  redact_secrets: true
+  block_on_injection: false      # true = drop content flagged as prompt injection instead of tagging it
+
+registry:
+  manifest: null                 # defaults to the packaged prompts/manifest.yaml
+  require_approved: true
+
+knowledge:
+  paths: []                      # extra directories with *.yaml knowledge entries
+
+skills:
+  paths: [builtin]               # skill roots (see src/scr_agents/skills/README.md): builtin = the package's
+                                 # own skills folder; add directories with the same layout (relative = cwd)
+
+review:
+  max_rounds: 3                  # review rounds in total: after the validator, findings it (and the person
+                                 # reviewing) did not settle can be reviewed again from the planner
+  orchestrator: deterministic    # deterministic: planner, 3 subagents, merge/rank in code, validator.
+                                 # openflow: an LLM orchestrates the round with tools (run reviewers,
+                                 # validate, report). CLI --orchestrator, env SCR_AGENTS_ORCHESTRATOR
+  openflow_max_turns: 30         # tool turns of the openflow orchestrator
+
+output_dir: out
+projects_dir: out/projects       # git URLs given to `scr-agents chat` / `review` are cloned here
+max_diff_chars: 40000
+whole_repo_max_files: 400        # cap for scope=all (whole repository) reviews

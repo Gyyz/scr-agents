@@ -1,0 +1,14 @@
+# One MCP server: how scr_agents starts it. The console (Configure -> MCP servers) can switch it on or
+# off, choose which agents get its tools and make it the web search; it cannot change the command.
+name: websearch                   # tool prefix (mcp_websearch_<tool>) and the name in mcp_servers/config.yaml
+description: Web search through Bing, Brave and DuckDuckGo, no API key (mrkrsl/web-search-mcp)
+homepage: https://github.com/mrkrsl/web-search-mcp
+command: node
+args: ["--import", "{dir}/quiet-stdout.mjs", "{dir}/server/dist/index.js"]   # {dir} = this folder
+env: {BROWSER_TYPES: chromium, DEFAULT_TIMEOUT: "8000"}
+untrusted: true                   # results are wrapped as untrusted data (the default; keep it)
+requires: ["{dir}/server/dist/index.js"]   # missing = "not installed"; the server is not started
+install: sh mcp_servers/web-search/install.sh     # shown in the console when something is missing
+# This server can back the agents' `web_search` tool: results are filtered to web_search.allowlist
+# (scr_agents.yaml) and only that wrapper is offered, the server's other tools stay hidden.
+web_search: {tool_name: get-web-search-summaries, query_arg: query, limit_arg: limit}

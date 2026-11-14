@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SCR Agents console</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <button class="icon-btn" id="rail-toggle" title="conversations" aria-label="toggle conversations">☰</button>
+  <div class="cfg-wrap">
+    <button class="cfg-btn" id="cfg-btn" aria-haspopup="menu" aria-expanded="false" title="Configure MCP servers and skills">⚙ <span class="lbl">Configure</span> <span class="caret">▾</span></button>
+    <div class="cfg-menu" id="cfg-menu" role="menu" hidden>
+      <button role="menuitem" data-settings="mcp_servers"><b>MCP servers</b><span>Switch servers on, choose agents, web search</span></button>
+      <button role="menuitem" data-settings="skills"><b>Skills</b><span>Shared and per-agent review guidance</span></button>
+      <button role="menuitem" data-settings="models"><b>Models &amp; mode</b><span>What this server runs (read-only)</span></button>
+    </div>
+  </div>
+  <div class="brand">
+    <span class="brand-mark"></span>
+    <span class="brand-name">SCR Agents</span>
+  </div>
+  <div class="orch-pick">
+    <span class="orch-label" id="orch-label">Orchestrator</span>
+    <div class="seg" id="orch-switch" role="radiogroup" aria-labelledby="orch-label">
+      <button type="button" role="radio" data-orch="deterministic" aria-checked="true"
+        title="Fixed flow: planner, the three reviewers in parallel, merge and rank in code, then the validator">Deterministic</button>
+      <button type="button" role="radio" data-orch="openflow" aria-checked="false"
+        title="An LLM runs the round: it picks which reviewers to run on what, what to validate and what to report">OpenFlow</button>
+    </div>
+  </div>
+  <div class="topbar-right" id="config-badges"></div>
+</header>
+
+<div class="shell">
+  <aside class="rail" id="rail">
+    <button class="btn primary wide" id="new-chat">+ New chat</button>
+    <div class="rail-label">Conversations</div>
+    <ul class="chat-list" id="chat-list"></ul>
+    <details class="rail-runs">
+      <summary class="rail-label">Past runs <span class="count" id="runs-count"></span></summary>
+      <ul class="run-list" id="run-list"></ul>
+    </details>
+  </aside>
+
+  <main class="thread-wrap" id="thread-wrap">
+    <section class="welcome" id="welcome">
+      <div class="welcome-mark">◎</div>
+      <h1>What should I review?</h1>
+      <p class="muted">Paste a git URL, optionally followed by what to look for. The agents check out the code, run
+        the scanners and tests, review it in parallel and re-check every finding with a second model.</p>
+      <form id="start-form" class="start-form" autocomplete="off">
+        <textarea id="start-input" rows="2" placeholder="https://github.com/org/repo  check the last 3 commits for injection bugs"></textarea>
+        <div class="start-actions">
+          <button type="button" class="btn" id="demo-btn">Try the demo repository</button>
+          <button type="submit" class="btn primary" id="start-btn">Start</button>
+        </div>
+        <p class="form-error" id="start-error" hidden></p>
+      </form>
+    </section>
+
+    <section class="thread" id="thread" hidden aria-live="polite"></section>
+
+    <form class="composer" id="composer" hidden autocomplete="off">
+      <textarea id="composer-input" rows="1" placeholder="Ask, or tell the agents what to check…" title="Enter to send, Shift+Enter for a new line"></textarea>
+      <button type="submit" class="btn primary send" title="send">↑</button>
+    </form>
+  </main>
+</div>
+
+<div class="side-stack" id="side-stack" hidden>
+  <section class="side-panel orch" id="orch" aria-label="orchestrator progress">
+    <button class="activity-head" id="orch-toggle" aria-expanded="true">
+      <span class="activity-dot" id="orch-dot"></span>
+      <span id="orch-title">Orchestrator</span>
+      <span class="caret">▾</span>
+    </button>
+    <div class="orch-body" id="orch-body"></div>
+  </section>
+  <section class="side-panel mcp-panel" id="mcp" aria-label="MCP servers and calls">
+    <button class="activity-head" id="mcp-toggle" aria-expanded="true">
+      <span class="activity-dot" id="mcp-dot"></span>
+      <span id="mcp-title">MCP</span>
+      <span class="caret">▾</span>
+    </button>
+    <div class="mcp-body" id="mcp-body"></div>
+  </section>
+  <section class="side-panel mem-panel" id="mem" aria-label="memory and KV cache">
+    <button class="activity-head" id="mem-toggle" aria-expanded="true">
+      <span class="activity-dot" id="mem-dot"></span>
+      <span id="mem-title">Memory</span>
+      <span class="caret">▾</span>
+    </button>
+    <div class="mem-body" id="mem-body"></div>
+  </section>
+  <aside class="side-panel activity" id="activity" aria-label="background activity">
+    <button class="activity-head" id="activity-toggle" aria-expanded="true">
+      <span class="activity-dot" id="activity-dot"></span>
+      <span id="activity-title">Activity</span>
+      <span class="caret">▾</span>
+    </button>
+    <div class="activity-list" id="activity-list"></div>
+  </aside>
+</div>
+
+<aside class="settings" id="settings" aria-label="configuration" hidden>
+  <div class="settings-head">
+    <div class="settings-tabs" role="tablist">
+      <button role="tab" data-tab="mcp_servers">MCP servers</button>
+      <button role="tab" data-tab="skills">Skills</button>
+      <button role="tab" data-tab="models">Models &amp; mode</button>
+    </div>
+    <button class="drawer-close" id="settings-close" title="close (Esc)">×</button>
+  </div>
+  <div class="settings-body" id="settings-body"></div>
+</aside>
+
+<aside class="drawer" id="drawer" aria-label="detail">
+  <div class="drawer-head">
+    <div>
+      <div class="eyebrow" id="drawer-kind"></div>
+      <h3 id="drawer-title"></h3>
+      <div class="drawer-meta" id="drawer-meta"></div>
+    </div>
+    <button class="drawer-close" id="drawer-close" title="close (Esc)">×</button>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+</aside>
+<script src="/static/app.js"></script>
+</body>
+</html>

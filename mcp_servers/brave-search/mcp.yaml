@@ -1,0 +1,13 @@
+# Brave Search API (needs a key from https://brave.com/search/api/). The key is read from the
+# environment of the scr_agents process, never written here: export BRAVE_API_KEY=... before
+# `scr-agents serve` / `scr-agents review`.
+name: brave
+description: Brave Search API (web and local search); needs BRAVE_API_KEY in the environment
+homepage: https://github.com/modelcontextprotocol/servers-archived/tree/main/src/brave-search
+command: npx
+args: ["-y", "@modelcontextprotocol/server-brave-search"]
+env_from_host: [BRAVE_API_KEY]    # copied from scr_agents's environment when set
+requires_env: [BRAVE_API_KEY]     # missing = "not ready"; the server is not started
+untrusted: true
+install: "needs Node (npx) and export BRAVE_API_KEY=<your key>"
+web_search: {tool_name: brave_web_search, query_arg: query, limit_arg: count}

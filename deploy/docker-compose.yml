@@ -1,0 +1,108 @@
+# scr_agents on one server: 6x RTX 6000 Ada (48 GB each), 2x EPYC 7653 (128 cores), 512 GB RAM.
+#
+#   GPUs 0-1  vllm-reviewer   google/gemma-4-31B-it           bf16, TP=2   (reviewer subagents + lead)
+#   GPUs 2-5  vllm-validator  meta-llama/Llama-3.3-70B-Instruct fp8, TP=4  (second model: validator)
+#   CPU       scr-agents      web console + chat sessions, scanners, builds and tests of reviewed code
+#
+# Model weights are downloaded once with deploy/download_models.sh (needs a Hugging Face token for the
+# gated repos); after that every container runs with HF_HUB_OFFLINE=1 on an internal network.
+#
+#   docker compose -f deploy/docker-compose.yml up -d
+#   open http://<server>:8765            # web console
+#   docker compose -f deploy/docker-compose.yml exec scr-agents scr-agents llm check
+#   docker compose -f deploy/docker-compose.yml exec -it scr-agents scr-agents chat /data/projects/<repo>
+
+x-vllm-common: &vllm-common
+  image: vllm/vllm-openai:latest        # Gemma 4 needs vLLM >= 0.19; pin the tag you validated
+  restart: unless-stopped
+  ipc: host                             # tensor parallel workers share memory
+  environment:
+    HF_HOME: /models
+    HF_HUB_OFFLINE: "1"
+    VLLM_LOGGING_LEVEL: INFO
+  volumes:
+    - ./models:/models
+    - ./templates:/templates:ro
+  networks: [internal]
+  healthcheck:
+    test: ["CMD", "curl", "-sf", "http://localhost:8000/v1/models"]
+    interval: 30s
+    timeout: 5s
+    retries: 60                         # loading 70B weights takes a few minutes
+    start_period: 600s
+
+services:
+  vllm-reviewer:
+    <<: *vllm-common
+    command: >-
+      --model google/gemma-4-31B-it
+      --served-model-name google/gemma-4-31B-it
+      --tensor-parallel-size 2
+      --max-model-len 65536
+      --max-num-seqs 16
+      --gpu-memory-utilization 0.92
+      --enable-auto-tool-choice --tool-call-parser gemma4
+      --reasoning-parser gemma4
+      --enable-prompt-tokens-details
+      --chat-template /templates/tool_chat_template_gemma4.jinja
+      --port 8000
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0", "1"]
+              capabilities: [gpu]
+
+  vllm-validator:
+    <<: *vllm-common
+    command: >-
+      --model meta-llama/Llama-3.3-70B-Instruct
+      --served-model-name meta-llama/Llama-3.3-70B-Instruct
+      --quantization fp8
+      --tensor-parallel-size 4
+      --max-model-len 65536
+      --max-num-seqs 16
+      --gpu-memory-utilization 0.92
+      --enable-auto-tool-choice --tool-call-parser llama3_json
+      --enable-prompt-tokens-details
+      --chat-template /templates/tool_chat_template_llama3.1_json.jinja
+      --port 8000
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["2", "3", "4", "5"]
+              capabilities: [gpu]
+
+  scr-agents:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      vllm-reviewer: {condition: service_healthy}
+      vllm-validator: {condition: service_healthy}
+    command: ["serve", "--host", "0.0.0.0", "--port", "8765", "--config", "/app/deploy/scr_agents.yaml"]
+    volumes:
+      - ./data:/data                    # out/ (reports, activity logs) and cloned projects
+    ports:
+      - "8765:8765"
+    networks: [internal, edge]          # internal: reach vLLM; edge: console access + git clone.
+                                        # For a strictly offline box drop "edge" and reach the console
+                                        # through an SSH tunnel or a reverse proxy on this host.
+    # The container is the sovereign sandbox: reviewed code is built and tested inside it.
+    cpus: "48"
+    mem_limit: 128g
+    pids_limit: 4096
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    environment:
+      SCR_AGENTS_MODE: local
+      SCR_AGENTS_TOKEN: ${SCR_AGENTS_TOKEN:-}   # console/API token; empty = generated per start (see container logs)
+
+networks:
+  internal:
+    internal: true                      # no route to the outside world
+  edge: {}

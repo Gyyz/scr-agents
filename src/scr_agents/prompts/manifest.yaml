@@ -1,0 +1,50 @@
+entries:
+  lead_agent:
+    path: lead_agent.md
+    sha256: 9b14296c5840e17fcd2f26ad9c1faf90c4e5f0bb02a2cb3d0c1685e25aa39b14
+    approved: true
+    version: '1'
+    variant: A
+    description: ''
+  openflow_orchestrator:
+    path: openflow_orchestrator.md
+    sha256: 57ef5eb4320273e9c58805fb617f33af9cd802279d20efca027a6a16e9c9775f
+    approved: true
+    version: '1'
+    variant: A
+    description: OpenFlow orchestrator (an LLM runs the review round with tools).
+  review_planner:
+    path: review_planner.md
+    sha256: 67dc255bd82ce2958ddfe5a3b348c2a9a5ded024fec6434623db433f6873a39d
+    approved: true
+    version: '1'
+    variant: A
+    description: Review agent planning prompt (focus files, hypotheses).
+  subagent_bugs:
+    path: subagent_bugs.md
+    sha256: 961c3ab744f033b1bdd28d85cb4a6c54cf18fd21a7fe471f0794b42eea5ade58
+    approved: true
+    version: '1'
+    variant: A
+    description: Bug-finding subagent.
+  subagent_style:
+    path: subagent_style.md
+    sha256: 9736f63e265adf44b0248a46cc60994619cef5f50c6e0ef8f3e6da0f559330ad
+    approved: true
+    version: '1'
+    variant: A
+    description: Style and naming subagent.
+  subagent_vulnerabilities:
+    path: subagent_vulnerabilities.md
+    sha256: 32022da5770ed62749ff24552e25b42a0d00ed23ed9b2498e48a01029498ec58
+    approved: true
+    version: '1'
+    variant: A
+    description: Vulnerability subagent (CWE/CERT/MISRA aware).
+  validator:
+    path: validator.md
+    sha256: 7c53cb5aa9619cfefbeb9df5a98dcb1fdbf72be3d74e69da52694ad60fe81000
+    approved: true
+    version: '1'
+    variant: A
+    description: ''

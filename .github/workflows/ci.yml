@@ -1,0 +1,82 @@
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: [linux-x64-small]
+    # Normally under a minute. The limit stops a stalled download from holding a
+    # runner for GitHub's 6-hour default; slow PyPI downloads have taken up to
+    # 22 minutes without hanging, so it is set well above that.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          prune-cache: false
+          cache-suffix: lint
+      - run: uv sync --frozen --only-group dev
+      - run: uv run --frozen ruff check .
+      - run: uv run --frozen ruff format --check .
+
+  typecheck:
+    runs-on: [linux-x64-small]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          prune-cache: false
+          cache-suffix: typecheck
+      - run: uv sync --frozen              # full sync so mypy sees runtime dependencies
+      - run: uv run --frozen mypy .
+
+  test:
+    runs-on: [linux-x64-small]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true                   # caches uv's package cache between runs
+          # Keep downloaded wheels in the cache. setup-uv prunes them by default
+          # on the assumption that re-downloading from PyPI is cheap, but PyPI is
+          # slow from some of our runners while the Actions cache is internal.
+          prune-cache: false
+          # Each job syncs different dependency groups, so give each its own cache
+          # rather than one shared key holding whichever job saved first.
+          cache-suffix: test
+      - name: Sync dependencies
+        run: uv sync --frozen                  # install exactly what's in uv.lock
+      - name: Run tests
+        # pytest exits 5 when no tests are collected; treat that as success so
+        # the template passes CI before any tests exist. Real failures still fail.
+        run: |
+          uv run --frozen pytest || rc=$?
+          if [ "${rc:-0}" -eq 5 ]; then
+            echo "No tests collected - skipping"
+            exit 0
+          fi
+          exit "${rc:-0}"
+
+  docs:
+    runs-on: [linux-x64-small]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          prune-cache: false
+          cache-suffix: docs
+      - run: uv sync --frozen --only-group docs
+      # --no-sync keeps the environment docs-only. sphinx-autoapi parses src/
+      # statically, so the project itself never needs to be installed.
+      - run: uv run --frozen --no-sync sphinx-build -W --keep-going -b html docs docs/_build/html

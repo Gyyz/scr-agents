@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 480" role="img" aria-labelledby="t d" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="t">Review rounds</title>
+  <desc id="d">Each round the reviewers write the Review Report and the validator comments on it in the Validator Report. If findings are not settled, the person accepts or rejects them and may start another round, which reviews the pending findings again.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#5b6470"/>
+    </marker>
+    <style>
+      .bg { fill: #fbfaf7; stroke: #d9d5cc; }
+      .box { fill: #ffffff; stroke: #b9b3a6; stroke-width: 1.2; }
+      .agent { fill: #eeeafb; stroke: #8f7fdc; }
+      .val { fill: #fdf1dc; stroke: #d9a441; }
+      .doc { fill: #e8f0fb; stroke: #7da3d9; }
+      .person { fill: #e6f3ee; stroke: #6fae95; }
+      .h { font-size: 14px; font-weight: 650; fill: #1c2026; text-anchor: middle; }
+      .s { font-size: 11.5px; fill: #4a525d; text-anchor: middle; }
+      .lab { font-size: 12px; font-weight: 650; fill: #5b6470; }
+      .cap { font-size: 11px; font-weight: 650; letter-spacing: .08em; fill: #7a828d; }
+      .line { stroke: #5b6470; stroke-width: 1.4; fill: none; }
+      .th { font-size: 12px; font-weight: 650; fill: #1c2026; }
+      .td { font-size: 12.5px; fill: #2b313a; }
+      .rule { stroke: #d9d5cc; stroke-width: 1; }
+      .real { fill: #1f7a5a; font-weight: 650; }
+      .false { fill: #6b7280; font-weight: 650; }
+      .pend { fill: #a56a00; font-weight: 650; }
+    </style>
+  </defs>
+  <rect class="bg" x="0.5" y="0.5" width="1079" height="479" rx="14"/>
+
+  <text class="cap" x="30" y="30">ONE ROUND</text>
+  <rect class="box agent" x="30" y="42" width="130" height="66" rx="9"/>
+  <text class="h" x="95" y="70">Planner</text>
+  <text class="s" x="95" y="90">plans the round</text>
+
+  <rect class="box agent" x="190" y="42" width="150" height="66" rx="9"/>
+  <text class="h" x="265" y="70">Three reviewers</text>
+  <text class="s" x="265" y="90">bugs, security, style</text>
+
+  <rect class="box doc" x="370" y="42" width="150" height="66" rx="9"/>
+  <text class="h" x="445" y="70">Review Report</text>
+  <text class="s" x="445" y="90">the merged findings</text>
+
+  <rect class="box val" x="550" y="42" width="130" height="66" rx="9"/>
+  <text class="h" x="615" y="70">Validator</text>
+  <text class="s" x="615" y="90">checks every finding</text>
+
+  <rect class="box doc" x="710" y="42" width="160" height="66" rx="9"/>
+  <text class="h" x="790" y="70">Validator Report</text>
+  <text class="s" x="790" y="90">verdict and comment each</text>
+
+  <rect class="box" x="900" y="42" width="150" height="66" rx="9"/>
+  <text class="h" x="975" y="70">All settled?</text>
+  <text class="s" x="975" y="90">or round limit reached</text>
+
+  <path class="line" d="M160 75 H188" marker-end="url(#arrow)"/>
+  <path class="line" d="M340 75 H368" marker-end="url(#arrow)"/>
+  <path class="line" d="M520 75 H548" marker-end="url(#arrow)"/>
+  <path class="line" d="M680 75 H708" marker-end="url(#arrow)"/>
+  <path class="line" d="M870 75 H898" marker-end="url(#arrow)"/>
+
+  <rect class="box doc" x="900" y="160" width="150" height="66" rx="9"/>
+  <text class="h" x="975" y="188">Final report</text>
+  <text class="s" x="975" y="208">the last round's report</text>
+  <path class="line" d="M1005 108 V158" marker-end="url(#arrow)"/>
+  <text class="lab" x="1013" y="138">yes</text>
+
+  <rect class="box person" x="520" y="160" width="340" height="66" rx="9"/>
+  <text class="h" x="690" y="188">The person decides</text>
+  <text class="s" x="690" y="208">accept or reject each finding; review again?</text>
+  <path class="line" d="M940 108 V134 H690 V158" marker-end="url(#arrow)"/>
+  <text class="lab" x="800" y="128">no</text>
+
+  <rect class="box agent" x="30" y="160" width="450" height="66" rx="9"/>
+  <text class="h" x="255" y="188">Next round</text>
+  <text class="s" x="255" y="208">the pending findings and both reports are the new round's context</text>
+  <path class="line" d="M520 193 H482" marker-end="url(#arrow)"/>
+  <path class="line" d="M95 160 V110" marker-end="url(#arrow)"/>
+
+  <text class="cap" x="30" y="268">WHEN A FINDING IS SETTLED</text>
+  <rect class="box" x="30" y="280" width="1020" height="150" rx="9"/>
+  <text class="th" x="50" y="301">The validator says</text>
+  <text class="th" x="290" y="301">The person says</text>
+  <text class="th" x="500" y="301">Result</text>
+  <line class="rule" x1="30" y1="310" x2="1050" y2="310"/>
+  <text class="td" x="50" y="331">confirmed</text>
+  <text class="td" x="290" y="331">accept</text>
+  <text class="td" x="500" y="331"><tspan class="real">settled as real</tspan>, carried into later rounds</text>
+  <line class="rule" x1="30" y1="340" x2="1050" y2="340"/>
+  <text class="td" x="50" y="361">rejected</text>
+  <text class="td" x="290" y="361">reject</text>
+  <text class="td" x="500" y="361"><tspan class="false">settled as a false positive</tspan>, kept in the report, not reviewed again</text>
+  <line class="rule" x1="30" y1="370" x2="1050" y2="370"/>
+  <text class="td" x="50" y="391">unverified</text>
+  <text class="td" x="290" y="391">accept</text>
+  <text class="td" x="500" y="391"><tspan class="real">settled as real</tspan>, carried into later rounds</text>
+  <line class="rule" x1="30" y1="400" x2="1050" y2="400"/>
+  <text class="td" x="50" y="421">any other combination, or no verdict yet</text>
+  <text class="td" x="500" y="421"><tspan class="pend">pending</tspan>, reviewed again if another round starts</text>
+
+  <text class="s" x="540" y="458">With --auto-rounds nobody is asked: confirmed and rejected findings settle, and only unverified ones are reviewed again.</text>
+</svg>

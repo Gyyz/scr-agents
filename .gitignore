@@ -1,0 +1,48 @@
+.venv/
+
+__pycache__/
+*.py[cod]
+
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+dist/
+build/
+*.egg-info/
+
+# Sphinx
+docs/_build/
+docs/autoapi/
+
+# Local secrets and settings (see .env.example)
+.env
+
+# MLflow local tracking store and artifacts
+mlflow.db
+mlruns/
+mlartifacts/
+
+
+data/
+
+# --- scr_agents ---------------------------------------------------------------
+# review runs, sessions and clones of the repositories under review
+out/
+# local config with LAN addresses (deploy/scr_agents.yaml is the tracked template)
+/scr_agents.yaml
+# deployment artefacts: models, data and logs are large or machine-specific
+deploy/models/
+deploy/data/
+deploy/templates/
+deploy/logs/
+deploy/generated/
+.DS_Store
+# third-party MCP servers installed into mcp_servers/<server>/server by their install
+# scripts (own git repo + node_modules); manifests, scripts and README are tracked
+mcp_servers/*/server/
+# console state: which MCP servers and skills are switched on
+mcp_servers/config.yaml
+src/scr_agents/skills/config.yaml
+# notes for AI coding agents: kept locally, not part of the repository
+CLAUDE.md

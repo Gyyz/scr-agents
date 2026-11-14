@@ -1,0 +1,49 @@
+entries:
+  - id: STR31-C
+    standard: CERT-C
+    title: Guarantee that storage for strings has sufficient space for character data and the null terminator
+    summary: Copying strings into fixed buffers must account for the terminator and input length.
+    languages: [c, cpp]
+    keywords: [string, buffer, strcpy, strcat, gets, sprintf, null, terminator]
+    mitigations: [Use bounded copies with explicit sizes]
+    references: [https://wiki.sei.cmu.edu/confluence/display/c/STR31-C]
+  - id: INT32-C
+    standard: CERT-C
+    title: Ensure that operations on signed integers do not result in overflow
+    summary: Signed overflow is undefined behavior in C.
+    languages: [c, cpp]
+    keywords: [integer, overflow, signed, arithmetic, undefined]
+    mitigations: [Check operands before arithmetic]
+    references: [https://wiki.sei.cmu.edu/confluence/display/c/INT32-C]
+  - id: MEM30-C
+    standard: CERT-C
+    title: Do not access freed memory
+    summary: Using memory after free() is undefined behavior.
+    languages: [c, cpp]
+    keywords: [free, use-after-free, dangling, memory]
+    mitigations: [Set pointers to NULL after free, Track ownership]
+    references: [https://wiki.sei.cmu.edu/confluence/display/c/MEM30-C]
+  - id: EXP34-C
+    standard: CERT-C
+    title: Do not dereference null pointers
+    summary: Check pointers returned from functions that may fail.
+    languages: [c, cpp]
+    keywords: [null, pointer, dereference, malloc, return]
+    mitigations: [Check return values of allocation and lookup functions]
+    references: [https://wiki.sei.cmu.edu/confluence/display/c/EXP34-C]
+  - id: FIO30-C
+    standard: CERT-C
+    title: Exclude user input from format strings
+    summary: Format strings must be literals.
+    languages: [c, cpp]
+    keywords: [format, printf, user, input, string]
+    mitigations: [Use printf("%s", s)]
+    references: [https://wiki.sei.cmu.edu/confluence/display/c/FIO30-C]
+  - id: ENV33-C
+    standard: CERT-C
+    title: Do not call system()
+    summary: system() invokes a shell and is prone to command injection.
+    languages: [c, cpp]
+    keywords: [system, shell, command, injection, exec]
+    mitigations: [Use execve-family functions with argv]
+    references: [https://wiki.sei.cmu.edu/confluence/display/c/ENV33-C]
