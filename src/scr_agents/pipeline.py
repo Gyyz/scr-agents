@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import importlib.util
 import logging
+import os
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -10,7 +12,12 @@ from typing import Any
 
 from scr_agents.config import ORCHESTRATORS, Settings
 from scr_agents.inputs.request import build_request
-from scr_agents.llm.backend import AnthropicBackend, LLMBackend, OfflineBackend
+from scr_agents.llm.backend import (
+    AnthropicBackend,
+    LLMBackend,
+    OfflineBackend,
+    has_anthropic_credentials,
+)
 from scr_agents.llm.local import LocalBackend
 from scr_agents.llm.mcp_client import MCPClient
 from scr_agents.llm.mcp_registry import effective as mcp_effective
@@ -52,8 +59,8 @@ BackendFactory = Callable[[str, str | None], LLMBackend]
 def resolve_mode(settings: Settings) -> str:
     """Return the LLM mode to run in, resolving ``auto`` to local or offline.
 
-    Auto -> local when the configured server answers, otherwise offline. Never the
-    online API.
+    Auto -> local when the configured server answers, otherwise offline. Never an
+    online API: ``openai`` and ``anthropic`` run only when the mode names them.
     """
     if settings.llm.mode == "auto":
         return (
@@ -90,6 +97,50 @@ def local_models(settings: Settings) -> tuple[str, str, str]:
     return model, cfg.validator_model or model, cfg.validator_base_url or cfg.base_url
 
 
+def openai_models(settings: Settings) -> tuple[str, str, str]:
+    """Resolve the reviewer model, validator model and API key for ``mode: openai``.
+
+    Returns:
+        ``(reviewer_model, validator_model, api_key)``.
+
+    Raises:
+        RuntimeError: If ``llm.openai.model`` is empty, or the environment variable
+            named in ``llm.openai.api_key_env`` is not set.
+    """
+    cfg = settings.llm.openai
+    if not cfg.model:
+        raise RuntimeError(
+            "llm.mode is openai but llm.openai.model is empty: set it to the "
+            "provider's model id"
+        )
+    key = os.environ.get(cfg.api_key_env, "")
+    if not key:
+        raise RuntimeError(
+            f"llm.mode is openai but {cfg.api_key_env} is not set: export it or put "
+            "it in .env (llm.openai.api_key_env names the variable)"
+        )
+    return cfg.model, cfg.validator_model or cfg.model, key
+
+
+def require_anthropic() -> None:
+    """Check that ``mode: anthropic`` can run, before any agent starts.
+
+    Raises:
+        RuntimeError: If the ``anthropic`` package (the opt-in extra) is not
+            installed, or no Claude API credentials are found.
+    """
+    if importlib.util.find_spec("anthropic") is None:
+        raise RuntimeError(
+            "llm.mode is anthropic but the anthropic package is not installed: "
+            "uv sync --extra anthropic"
+        )
+    if not has_anthropic_credentials():
+        raise RuntimeError(
+            "llm.mode is anthropic but no credentials were found: export "
+            "ANTHROPIC_API_KEY or put it in .env"
+        )
+
+
 def independent_validator(
     reviewer_model: str, validator_model: str, reviewer_url: str, validator_url: str
 ) -> bool:
@@ -122,19 +173,25 @@ def make_backend_factory(settings: Settings) -> tuple[BackendFactory, str]:
 
     Returns:
         ``(factory, mode)``. ``factory(role, focus)`` returns an ``OfflineBackend``,
-        a ``LocalBackend`` or an ``AnthropicBackend`` according to ``mode``. The
-        ``validator`` role gets the validator model (and, in local mode, its
-        server); in Anthropic mode the ``planner`` role gets ``planner_model``. In
-        local mode each backend's context window is the ``max_model_len`` its
-        server reports for that model, else ``llm.local.context_window``.
+        a ``LocalBackend`` (local and openai modes) or an ``AnthropicBackend``
+        according to ``mode``. The ``validator`` role gets the validator model (and,
+        in local mode, its server); in Anthropic mode the ``planner`` role gets
+        ``planner_model``. In local mode each backend's context window is the
+        ``max_model_len`` its server reports for that model, else
+        ``llm.local.context_window``; in openai mode it is
+        ``llm.openai.context_window``.
 
     Raises:
         RuntimeError: In local mode, if no model is configured and the server lists
-            none.
+            none. In openai mode, if the model or the API key is missing. In
+            anthropic mode, if the SDK or the credentials are missing.
     """
     mode = resolve_mode(settings)
+    if mode == "anthropic":
+        require_anthropic()
     llm = settings.llm
     resolved = local_models(settings) if mode == "local" else None
+    hosted = openai_models(settings) if mode == "openai" else None
     windows: dict[tuple[str, str], int] = {}
     if resolved is not None:
         model, vmodel, vurl = resolved
@@ -168,6 +225,22 @@ def make_backend_factory(settings: Settings) -> tuple[BackendFactory, str]:
                 json_repair=cfg.json_repair,
                 extra_body=cfg.extra_body,
                 context_window=windows[(base_url, chosen)],
+            )
+        if mode == "openai":
+            oai = llm.openai
+            rmodel, vmodel, key = hosted  # type: ignore[misc]
+            return LocalBackend(
+                oai.base_url,
+                vmodel if role == "validator" else rmodel,
+                api_key=key,
+                temperature=oai.temperature,
+                max_tokens=oai.max_tokens,
+                timeout_s=oai.timeout_s,
+                json_repair=oai.json_repair,
+                extra_body=oai.extra_body,
+                context_window=oai.context_window,
+                token_param=oai.token_param,
+                name="openai",
             )
         if role == "validator":
             model, effort = llm.validator_model, llm.validator_effort
@@ -398,6 +471,21 @@ def run_review(
                     api_key=settings.llm.local.api_key,
                     interval_s=settings.llm.local.cache_metrics_interval_s,
                 ).start()
+        elif mode == "openai":
+            rm, vm, _ = openai_models(settings)
+            models = {"reviewer": rm, "validator": vm}
+            activity.log(
+                "mode",
+                mode=mode,
+                reviewer_model=rm,
+                validator_model=vm,
+                base_url=settings.llm.openai.base_url,
+                independent_validator=rm != vm,
+            )
+            log.warning(
+                "LLM mode openai: the code under review is sent to %s",
+                settings.llm.openai.base_url,
+            )
         elif mode == "anthropic":
             models = {
                 "reviewer": settings.llm.reviewer_model,
@@ -410,6 +498,9 @@ def run_review(
                 validator_model=settings.llm.validator_model,
                 independent_validator=settings.llm.reviewer_model
                 != settings.llm.validator_model,
+            )
+            log.warning(
+                "LLM mode anthropic: the code under review is sent to the Claude API"
             )
         else:
             activity.log("mode", mode=mode, reviewer_model=mode, validator_model=mode)

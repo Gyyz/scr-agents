@@ -23,11 +23,12 @@ Other tools plug into it:
 The design follows an architecture diagram with five workstreams (WS1 to WS5); the package keeps
 that split (`ws1_review/` to `ws5_knowledge/`).
 
-Hard constraints from the project lead:
+Design constraints:
 
-- No online model API. Models are served locally by vLLM, SGLang or the company's GPUStack
-  (OpenAI-compatible). The Anthropic backend exists only behind an explicit `llm.mode: anthropic` and
-  is not installed by default.
+- Local by default. Models are served by vLLM, SGLang or a GPUStack server (OpenAI-compatible).
+  Online APIs run only behind an explicit `llm.mode`: `openai` (the OpenAI API or another hosted
+  OpenAI-compatible API) and `anthropic` (the Claude API, whose SDK is not installed by default).
+  `auto` never picks one.
 - Default models: Gemma 4 31B (`google/gemma-4-31B-it`, `gemma4-31b-it` on GPUStack) for the
   reviewers and Llama 3.x 70B for the validator.
 - Target server: 6x RTX 6000 Ada (48 GB), 2x EPYC 7653, 512 GB RAM.
@@ -210,7 +211,8 @@ Defaults: `src/scr_agents/configs/default.yaml`; override with `--config my.yaml
 
 | Key | Meaning |
 |---|---|
-| `llm.mode` | `auto` (local when the server answers, else offline), `local`, `offline`, `anthropic` (explicit opt-in) |
+| `llm.mode` | `auto` (local when the server answers, else offline), `local`, `offline`, `openai` and `anthropic` (online APIs, explicit opt-in) |
+| `llm.openai.base_url`, `model`, `validator_model`, `api_key_env` | the hosted API of mode `openai`; the key is read from the environment variable named in `api_key_env` (`OPENAI_API_KEY`) |
 | `llm.local.base_url`, `model`, `validator_base_url`, `validator_model` | reviewer and validator servers and models; an empty `model` picks the first served model matching `preferred_models` |
 | `llm.local.json_repair` | ask once more with `response_format` when a final answer is not JSON (never on normal turns: constrained decoding suppresses tool calls) |
 | `llm.local.extra_body` | passed through to the server, e.g. `{chat_template_kwargs: {enable_thinking: false}}` |

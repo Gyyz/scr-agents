@@ -1,7 +1,8 @@
 # SCR Agents
 
 Sovereign agentic secure code review: `scr_agents` is a self-hosted multi-agent code reviewer.
-Models are served locally; no online model API is called.
+By default the models are served locally (vLLM, SGLang); the OpenAI API and the Claude API are
+opt-in settings.
 
 ```{image} images/console-review.png
 :alt: The web console after a review of the demo repository

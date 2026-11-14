@@ -5,6 +5,7 @@ from __future__ import annotations
 import hmac
 import json
 import logging
+import os
 import queue
 import re
 import secrets
@@ -260,6 +261,14 @@ def create_app(
                     "validator_model": cfg.validator_model
                     or cfg.model
                     or (served[0] if served else ""),
+                },
+                # the hosted API of mode "openai": where it points, never the key
+                "openai": {
+                    "base_url": settings.llm.openai.base_url,
+                    "model": settings.llm.openai.model,
+                    "validator_model": settings.llm.openai.validator_model
+                    or settings.llm.openai.model,
+                    "key_set": bool(os.environ.get(settings.llm.openai.api_key_env)),
                 },
                 "reviewer_model": settings.llm.reviewer_model,
                 "validator_model": settings.llm.validator_model,

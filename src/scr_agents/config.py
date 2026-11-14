@@ -69,13 +69,40 @@ class LocalLLMConfig(BaseModel):
     )
 
 
+class OpenAIConfig(BaseModel):
+    """A hosted OpenAI-compatible API, OpenAI's by default (``llm.mode: openai``).
+
+    The code under review is sent to that provider. The API key is read from the
+    environment variable named in ``api_key_env``, never from a config file.
+    """
+
+    base_url: str = "https://api.openai.com/v1"
+    api_key_env: str = "OPENAI_API_KEY"
+    model: str = ""  # required: the provider's model id for the reviewers
+    validator_model: str = ""  # empty = same as model
+    # None = not sent: several hosted models accept only their default temperature
+    temperature: float | None = None
+    max_tokens: int = 8000
+    # the request field that caps the output; older models and other providers
+    # may want "max_tokens"
+    token_param: Literal["max_completion_tokens", "max_tokens"] = (
+        "max_completion_tokens"
+    )
+    timeout_s: float = 600.0
+    json_repair: bool = True
+    extra_body: dict[str, Any] = Field(default_factory=dict)
+    # tokens; the API does not report it. The tool loop compacts old results near it
+    context_window: int = 128000
+
+
 class LLMConfig(BaseModel):
     """Backend choice, per-role models, and agent turn and parallelism limits."""
 
-    mode: Literal["auto", "local", "anthropic", "offline"] = (
-        "auto"  # auto = local if reachable, else offline
+    mode: Literal["auto", "local", "openai", "anthropic", "offline"] = (
+        "auto"  # auto = local if reachable, else offline; never an online API
     )
     local: LocalLLMConfig = Field(default_factory=LocalLLMConfig)
+    openai: OpenAIConfig = Field(default_factory=OpenAIConfig)
     reviewer_model: str = (
         "claude-opus-5-5"  # only used with mode: anthropic (explicit opt-in)
     )
