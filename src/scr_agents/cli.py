@@ -351,7 +351,9 @@ def cmd_serve(args: argparse.Namespace) -> int:
     return 0
 
 
-def _check_llm_server(settings: Settings, role: str, base_url: str, model: str) -> bool:
+def _check_llm_server(
+    settings: Settings, role: str, base_url: str, model: str, hosted: bool = False
+) -> bool:
     """Check one model server for ``scr-agents llm check`` and print the results.
 
     Checks reachability, the served models, the context window, tool calling and
@@ -359,10 +361,13 @@ def _check_llm_server(settings: Settings, role: str, base_url: str, model: str) 
     call is parsed.
 
     Args:
-        settings: Loaded settings; ``llm.local`` gives the key, timeouts and limits.
+        settings: Loaded settings; ``llm.local`` gives the key, timeouts and limits
+            (``llm.openai`` and its environment variable when ``hosted``).
         role: ``reviewer`` or ``validator``, printed as the heading.
         base_url: The server's OpenAI-compatible endpoint.
         model: The model to test; empty picks the first one the server lists.
+        hosted: Check the hosted API of ``llm.mode: openai`` instead of a local
+            server.
 
     Returns:
         Whether every check passed.
@@ -372,40 +377,58 @@ def _check_llm_server(settings: Settings, role: str, base_url: str, model: str) 
     from scr_agents.llm.backend import BackendError
     from scr_agents.llm.local import LocalBackend
 
-    cfg = settings.llm.local
+    cfg = settings.llm.openai if hosted else settings.llm.local
+    block = "llm.openai" if hosted else "llm.local"
+    api_key = (
+        os.environ.get(settings.llm.openai.api_key_env, "")
+        if hosted
+        else settings.llm.local.api_key
+    )
     print(f"== {role}")
     print(f"server   {base_url}")
-    if not LocalBackend.reachable(base_url, cfg.api_key, timeout=5):
+    if hosted and not api_key:
+        print(f"status   NO KEY ({settings.llm.openai.api_key_env} is not set)")
+        return False
+    if not LocalBackend.reachable(base_url, api_key, timeout=5):
         print(
             "status   UNREACHABLE "
-            "(is vLLM / SGLang running with an OpenAI-compatible endpoint?)"
+            + (
+                "(is the key valid and the base URL right?)"
+                if hosted
+                else "(is vLLM / SGLang running with an OpenAI-compatible endpoint?)"
+            )
         )
         return False
-    models = LocalBackend.list_models(base_url, cfg.api_key)
+    models = LocalBackend.list_models(base_url, api_key)
     model = model or (models[0] if models else "")
-    print(f"models   {', '.join(models) or '(none listed)'}")
+    if hosted:
+        print(f"models   {len(models)} listed")
+    else:
+        print(f"models   {', '.join(models) or '(none listed)'}")
     print(f"using    {model}")
-    window = LocalBackend.served_context_window(base_url, model, cfg.api_key)
+    window = LocalBackend.served_context_window(base_url, model, api_key)
     limit = window or cfg.context_window
     print(
         f"window   {limit} tokens "
-        f"({'max_model_len' if window else 'llm.local.context_window'})"
+        f"({'max_model_len' if window else f'{block}.context_window'})"
     )
     if cfg.max_tokens * 4 > limit:
         print(
-            f"         -> llm.local.max_tokens ({cfg.max_tokens}) takes more than a "
+            f"         -> {block}.max_tokens ({cfg.max_tokens}) takes more than a "
             "quarter of it: tool results are compacted early; lower max_tokens or "
             "serve a longer context"
         )
     backend = LocalBackend(
         base_url,
         model,
-        api_key=cfg.api_key,
-        temperature=0,
+        api_key=api_key,
+        temperature=settings.llm.openai.temperature if hosted else 0,
         max_tokens=512,
         timeout_s=cfg.timeout_s,
         json_repair=cfg.json_repair,
         extra_body=cfg.extra_body,
+        token_param=settings.llm.openai.token_param if hosted else "max_tokens",
+        name="openai" if hosted else "local",
     )
     tool = {
         "name": "lookup_cwe",
@@ -494,12 +517,44 @@ def _check_llm_server(settings: Settings, role: str, base_url: str, model: str) 
     return ok
 
 
+def _check_hosted(settings: Settings, args: argparse.Namespace) -> int:
+    """Handle ``scr-agents llm check`` for ``llm.mode: openai``.
+
+    Checks the reviewer model and, when a different validator model is set, that
+    one too, on the hosted API. Each check sends two short requests, which the
+    provider bills.
+
+    Returns:
+        0 if every check passed, else 1.
+    """
+    cfg = settings.llm.openai
+    base_url = args.base_url or cfg.base_url
+    model = args.model or cfg.model
+    if not model:
+        print("llm.openai.model is empty: set it to the provider's model id")
+        return 1
+    ok = _check_llm_server(settings, "reviewer", base_url, model, hosted=True)
+    vmodel = cfg.validator_model or model
+    if not (args.base_url or args.model) and vmodel != model:
+        ok = _check_llm_server(settings, "validator", base_url, vmodel, True) and ok
+    print(
+        "result   "
+        + (
+            "ready: run `scr-agents review --mode openai ...`"
+            if ok
+            else "fix the issues above"
+        )
+    )
+    return 0 if ok else 1
+
+
 def cmd_llm(args: argparse.Namespace) -> int:
-    """Handle ``scr-agents llm check`` against the local OpenAI-compatible servers.
+    """Handle ``scr-agents llm check`` against the OpenAI-compatible servers.
 
     Checks the reviewer's server and, when the validator has its own server or
     model, that one too (see ``_check_llm_server``). ``--base-url`` or ``--model``
-    checks only the server and model named.
+    checks only the server and model named. With ``llm.mode: openai`` the hosted
+    API is checked instead of the local servers.
 
     Returns:
         0 if every check passed, else 1.
@@ -507,6 +562,8 @@ def cmd_llm(args: argparse.Namespace) -> int:
     from scr_agents.pipeline import independent_validator
 
     settings = _settings(args)
+    if settings.llm.mode == "openai":
+        return _check_hosted(settings, args)
     cfg = settings.llm.local
     base_url = args.base_url or cfg.base_url
     model = args.model or cfg.model
@@ -820,8 +877,9 @@ def build_parser() -> argparse.ArgumentParser:
         parser.add_argument(
             "--mode",
             default=d,
-            choices=["auto", "local", "anthropic", "offline"],
-            help="LLM mode",
+            choices=["auto", "local", "openai", "anthropic", "offline"],
+            help="LLM mode: auto picks the local server if it answers, else "
+            "offline; openai and anthropic are online APIs and only run when named",
         )
         parser.add_argument(
             "--orchestrator",
@@ -959,8 +1017,8 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     m.add_argument("llm_cmd", choices=["check"])
-    m.add_argument("--base-url", help="override llm.local.base_url")
-    m.add_argument("--model", help="override llm.local.model")
+    m.add_argument("--base-url", help="override the base_url of the mode in use")
+    m.add_argument("--model", help="override the model of the mode in use")
     m.set_defaults(func=cmd_llm)
 
     mc = add(

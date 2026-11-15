@@ -139,3 +139,43 @@ def test_local_mode_end_to_end(demo_repo, tmp_path):
         assert mode["independent_validator"] is False, (
             "both roles resolved to the single served model"
         )
+
+
+def test_openai_mode_end_to_end(demo_repo, tmp_path, monkeypatch):
+    """An ``openai`` review runs the same pipeline against the hosted-API settings."""
+    repo, base, head = demo_repo
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    with FakeServer(handler=fake_model) as srv:
+        settings = Settings.load(
+            overrides={
+                "llm": {
+                    "mode": "openai",
+                    "openai": {
+                        "base_url": srv.base_url,
+                        "model": "hosted-rev",
+                        "validator_model": "hosted-val",
+                    },
+                },
+                "output_dir": str(tmp_path / "out"),
+                "scanners": {"enabled": ["builtin"]},
+            }
+        )
+        report, run_dir = run_review(settings, repo, base, head)
+        assert report.stats["mode"] == "openai"
+        assert "Command injection via shell=True" in {
+            vf.finding.title for vf in report.findings
+        }
+        assert all(vf.verdict == Verdict.CONFIRMED for vf in report.findings)
+        assert {b["model"] for b in srv.requests} == {"hosted-rev", "hosted-val"}
+        assert all("max_completion_tokens" in b for b in srv.requests)
+        assert all(h["Authorization"] == "Bearer sk-test" for h in srv.headers)
+        from scr_agents.ws5_knowledge.activity_log import ActivityLog
+
+        mode = next(
+            e
+            for e in ActivityLog.read(run_dir / "activity.jsonl")
+            if e["event"] == "mode"
+        )
+        assert mode["reviewer_model"] == "hosted-rev"
+        assert mode["independent_validator"] is True
+        assert "sk-test" not in (run_dir / "activity.jsonl").read_text()

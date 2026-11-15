@@ -1,7 +1,7 @@
 # scr_agents: command cheat sheet
 
 All commands run from the repository root. `uv run` uses the project venv (`.venv`, Python 3.12).
-Global options go before or after the subcommand: `--config FILE`, `--mode auto|local|offline|anthropic`,
+Global options go before or after the subcommand: `--config FILE`, `--mode auto|local|openai|anthropic|offline`,
 `--orchestrator deterministic|openflow` (who runs a review round: code, or an LLM with tools), `--out DIR`
 (default `out`), `-v`.
 
@@ -59,6 +59,10 @@ uv run scr-agents review --repo . --base origin/main --head HEAD --fail-on confi
 
 # force a mode (auto = local server if reachable, else offline)
 uv run scr-agents review --repo . --base main --mode local
+
+# an online API instead of a local server: explicit, and the code is sent to the provider
+OPENAI_API_KEY=... uv run scr-agents --config scr_agents.yaml review --repo . --base main --mode openai
+uv sync --extra anthropic && ANTHROPIC_API_KEY=... uv run scr-agents review --repo . --base main --mode anthropic
 
 # let an LLM orchestrate the round (reviewers and validator as its tools)
 uv run scr-agents review --repo . --base main --orchestrator openflow

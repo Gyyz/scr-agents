@@ -171,9 +171,10 @@ async function init() {
 }
 
 function renderConfig() {
-  const c = state.config, l = c.local || {};
+  const c = state.config, l = c.local || {}, o = c.openai || {};
   let html;
-  if (c.mode === "local") html = `<span class="badge ok">local · <b>${esc(l.model || "?")}</b></span><span class="badge">validator <b>${esc(l.validator_model || "?")}</b></span>`;
+  if (c.mode === "openai") html = `<span class="badge warn">online · <b>${esc(o.model || "?")}</b></span><span class="badge">validator <b>${esc(o.validator_model || "?")}</b></span>`;
+  else if (c.mode === "local") html = `<span class="badge ok">local · <b>${esc(l.model || "?")}</b></span><span class="badge">validator <b>${esc(l.validator_model || "?")}</b></span>`;
   else if (c.mode === "anthropic") html = `<span class="badge warn">online · <b>${esc(c.reviewer_model)}</b></span>`;
   else html = `<span class="badge warn">offline · model server ${l.reachable ? "up" : "not reachable"}</span>`;
   $("config-badges").innerHTML = html;
@@ -1331,10 +1332,15 @@ function renderSkillSettings() {
 }
 
 function renderModelSettings() {
-  const c = state.config || {}, l = c.local || {};
+  const c = state.config || {}, l = c.local || {}, o = c.openai || {};
+  const hosted = c.mode === "openai", online = c.mode === "anthropic";
   const rows = [["mode", `${c.mode}${c.configured_mode && c.configured_mode !== c.mode ? ` (configured: ${c.configured_mode})` : ""}`],
-    ["model server", `${l.base_url || "?"} · ${l.reachable ? "reachable" : "not reachable"}`], ["reviewer model", l.model || c.reviewer_model],
-    ["validator model", l.validator_model || c.validator_model], ["served models", (l.models || []).join(", ") || "–"],
+    hosted ? ["model API", `${o.base_url || "?"} · online · key ${o.key_set ? "set" : "not set"}`]
+      : online ? ["model API", "Claude API · online"]
+      : ["model server", `${l.base_url || "?"} · ${l.reachable ? "reachable" : "not reachable"}`],
+    ["reviewer model", hosted ? o.model : online ? c.reviewer_model : l.model || c.reviewer_model],
+    ["validator model", hosted ? o.validator_model : online ? c.validator_model : l.validator_model || c.validator_model],
+    ["served models", hosted || online ? "–" : (l.models || []).join(", ") || "–"],
     ["scanners", (c.scanners || []).join(", ")], ["MCP servers in use", (c.mcp_servers || []).join(", ") || "none"],
     ["web search", c.web_search ? "on" : "off"], ["output folder", c.output_dir]];
   return `<div class="set-intro">These are decided by the server's config file and the command line, not from the console.</div>

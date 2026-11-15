@@ -5,8 +5,9 @@ whole tree) and it reports bugs, vulnerabilities and style problems. Every findi
 second time by a different model that can build the code, run its tests and run a proof of concept
 in a sandbox, so the report says what was actually confirmed and what was not.
 
-Everything runs on your own machines: the models are served locally (vLLM, SGLang or any
-OpenAI-compatible server) and no online model API is called.
+By default everything runs on your own machines: the models are served locally through the
+OpenAI-compatible API of vLLM, SGLang or a similar server. The OpenAI API and the Claude API can
+be switched on instead, each only when you name it in the configuration.
 
 ![The web console after a review of the demo repository](docs/images/console-review.png)
 
@@ -63,10 +64,25 @@ uv run scr-agents --mode offline serve
 Open the printed URL (it carries the access token), choose **Try the demo repository** and ask for
 a review.
 
-## Use your own models
+## Choose where the models run
 
-The agents talk to an OpenAI-compatible server. The defaults prefer Gemma 4 31B for the reviewers
-and Llama 3.x 70B for the validator; any model with working tool calls and JSON output will do.
+One setting, `llm.mode`, decides which model API the agents call:
+
+| `llm.mode` | Model API | What it needs |
+|---|---|---|
+| `local` | your own OpenAI-compatible server: vLLM, SGLang, llama.cpp, Ollama | `llm.local.base_url`; nothing leaves your machines |
+| `openai` | the OpenAI API, or another hosted OpenAI-compatible API | `llm.openai.model` and the `OPENAI_API_KEY` environment variable |
+| `anthropic` | the Claude API | `uv sync --extra anthropic` and the `ANTHROPIC_API_KEY` environment variable |
+| `offline` | none: a rule-based stand-in, for the demo and the tests | nothing |
+| `auto` (default) | `local` if the server answers, otherwise `offline` | never picks an online API |
+
+With `openai` or `anthropic` the code under review is sent to that provider. Keys are read from
+the environment or `.env`, never from the configuration file.
+
+### A local server (vLLM)
+
+The defaults prefer Gemma 4 31B for the reviewers and Llama 3.x 70B for the validator; any model
+with working tool calls and JSON output will do.
 
 ```bash
 # serve a model, for example with vLLM
@@ -88,6 +104,28 @@ The full server flags for vLLM and SGLang, including the chat templates, are in 
 `deploy/scr_agents.yaml`): the reviewer server and model, a second server and model for the
 validator, the scanners, the sandbox allowlist and the round limit. `python3 deploy/setup.py`
 writes a config and the model server start scripts for a GPU server interactively.
+
+### The OpenAI API or the Claude API
+
+```yaml
+# scr_agents.yaml
+llm:
+  mode: openai
+  openai:
+    model: <reviewer model id>
+    validator_model: <a different model id>   # optional; empty = the same model
+    # base_url: https://api.openai.com/v1     # change it for another OpenAI-compatible provider
+```
+
+```bash
+export OPENAI_API_KEY=...
+uv run scr-agents --config scr_agents.yaml llm check     # two short, billed requests per model
+uv run scr-agents --config scr_agents.yaml review --repo . --base main
+```
+
+For the Claude API set `llm.mode: anthropic`, with `llm.reviewer_model` and `llm.validator_model`
+if you do not want the defaults, install the SDK with `uv sync --extra anthropic` and export
+`ANTHROPIC_API_KEY`.
 
 ## Review rounds
 

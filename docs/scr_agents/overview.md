@@ -38,8 +38,9 @@ uv sync
 uv run scr-agents demo             # plants defects in a temp repo and reviews it
 ```
 
-The agents talk to a **locally hosted LLM** through the OpenAI-compatible API that vLLM and
-SGLang expose. No online API is called unless you explicitly set `llm.mode: anthropic`.
+By default the agents talk to a **locally hosted LLM** through the OpenAI-compatible API that vLLM
+and SGLang expose. An online API is called only when you explicitly set `llm.mode: openai` or
+`llm.mode: anthropic`; the code under review is then sent to that provider.
 
 ```bash
 # 1. serve a model locally. Defaults prefer Gemma 4 31B, then Llama 3.x 70B (llm.local.preferred_models)
@@ -254,9 +255,16 @@ from a terminal.
 Copy `src/scr_agents/configs/default.yaml` to `scr_agents.yaml`, edit, and pass `--config`.
 Highlights:
 
-- `llm.mode`: `auto` | `local` | `offline` | `anthropic`. `auto` picks `local` when the server
-  in `llm.local.base_url` answers, otherwise `offline`; the online Anthropic API is never used
-  unless you set `anthropic` explicitly.
+- `llm.mode`: `auto` | `local` | `openai` | `anthropic` | `offline`. `auto` picks `local` when the
+  server in `llm.local.base_url` answers, otherwise `offline`; an online API is never used unless
+  you set `openai` or `anthropic` explicitly.
+- `llm.openai` (mode `openai`): `base_url` (OpenAI's API by default; any hosted OpenAI-compatible
+  API works), `model` (required), `validator_model`, `api_key_env` (the environment variable that
+  holds the key, `OPENAI_API_KEY` by default; the key itself never goes in a config file),
+  `token_param` (`max_completion_tokens`, or `max_tokens` for older models and other providers),
+  `temperature` (not sent unless set) and `context_window`. `scr-agents llm check` tests it.
+- Mode `anthropic` uses `llm.reviewer_model` and `llm.validator_model` on the Claude API. It needs
+  the opt-in extra (`uv sync --extra anthropic`) and `ANTHROPIC_API_KEY`.
 - `llm.local`: `base_url`, `model` (empty = first model the server lists), `validator_model`,
   `temperature`, `max_tokens`, `json_repair` (re-ask with `response_format` guided decoding when
   the final answer is not JSON) and `extra_body` passed through to the server, e.g.
@@ -370,7 +378,7 @@ src/scr_agents/
   cli.py               scr-agents review | chat | serve | demo | verdict | mcp | skills | ...
   sessions.py          sessions and runs under out/sessions/
   inputs/              git, PR, project path or URL, request builder
-  llm/                 backends (local, offline, Anthropic), tool loop, MCP client and registry
+  llm/                 backends (OpenAI-compatible for local servers and the OpenAI API, Anthropic, offline), tool loop, MCP client and registry
   ws1_review/          orchestrator, subagents, validator, tools
   ws2_analysis/        code graph, scanners
   ws3_harness/         workspace, shell, test bench, evidence

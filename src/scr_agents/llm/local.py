@@ -1,7 +1,8 @@
-"""Local LLM backend: any OpenAI-compatible chat-completions server.
+"""OpenAI-compatible backend: any chat-completions server.
 
-That covers vLLM and SGLang (also llama.cpp server, Ollama, LM Studio). No online API
-is involved.
+That covers vLLM and SGLang (also llama.cpp server, Ollama, LM Studio), which keep
+everything on your own machines, and, only with ``llm.mode: openai``, a hosted API
+such as OpenAI's.
 
 The agents speak the Anthropic-style block dialect used by the tool loop; this module
 converts to and from the OpenAI chat format: system/user/assistant/tool messages,
@@ -44,13 +45,15 @@ class LocalBackend:
         base_url: str,
         model: str,
         api_key: str = "EMPTY",
-        temperature: float = 0.2,
+        temperature: float | None = 0.2,
         max_tokens: int = 8000,
         timeout_s: float = 600.0,
         json_repair: bool = True,
         extra_body: dict[str, Any] | None = None,
         retries: int = 2,
         context_window: int | None = None,
+        token_param: str = "max_tokens",
+        name: str = "local",
     ):
         """Configure the server and the request defaults; nothing is sent yet.
 
@@ -59,6 +62,8 @@ class LocalBackend:
             model: The served model name sent with every request.
             api_key: Bearer token; servers without authentication accept ``EMPTY``.
             temperature: Sampling temperature (the JSON repair request uses 0).
+                ``None`` leaves it out of every request, for hosted models that
+                accept only their default.
             max_tokens: Cap on the tokens generated per request, whatever the caller
                 asks for.
             timeout_s: Timeout of each HTTP request, in seconds.
@@ -68,6 +73,9 @@ class LocalBackend:
                 options.
             retries: Extra attempts after a connection error or a 5xx response.
             context_window: The server's context length in tokens, if known.
+            token_param: The request field that caps the generated tokens:
+                ``max_tokens``, or ``max_completion_tokens`` for OpenAI's API.
+            name: Recorded with every model call: ``local`` or ``openai``.
         """
         self.base_url = base_url.rstrip("/")
         # the server's --max-model-len; the tool loop budgets against it
@@ -80,6 +88,15 @@ class LocalBackend:
         self.json_repair = json_repair
         self.extra_body = dict(extra_body or {})
         self.retries = retries
+        self.token_param = token_param
+        self.name = name
+
+    def _sampling(self, max_tokens: int, temperature: float | None) -> dict[str, Any]:
+        """Return the output cap and, unless left out, the temperature of a request."""
+        fields: dict[str, Any] = {self.token_param: min(max_tokens, self.max_tokens)}
+        if self.temperature is not None and temperature is not None:
+            fields["temperature"] = temperature
+        return fields
 
     # ------------------------------------------------------------------ http
     @staticmethod
@@ -437,8 +454,7 @@ class LocalBackend:
         payload: dict[str, Any] = {
             "model": self.model,
             "messages": oai_messages,
-            "temperature": self.temperature,
-            "max_tokens": min(max_tokens, self.max_tokens),
+            **self._sampling(max_tokens, self.temperature),
         }
         if tools:
             payload["tools"] = self.to_openai_tools(tools)
@@ -476,8 +492,7 @@ class LocalBackend:
             repair: dict[str, Any] = {
                 "model": self.model,
                 "messages": repair_messages,
-                "temperature": 0,
-                "max_tokens": min(max_tokens, self.max_tokens),
+                **self._sampling(max_tokens, 0),
                 "response_format": {
                     "type": "json_schema",
                     "json_schema": {"name": "output", "schema": output_schema},

@@ -1,8 +1,9 @@
 # Packaged defaults. Copy to scr_agents.yaml in your project and pass --config to override.
 llm:
-  mode: auto                     # auto | local | anthropic | offline
+  mode: auto                     # auto | local | openai | anthropic | offline
                                  # auto = local server if reachable, otherwise offline. The online
-                                 # Anthropic API is used only when mode is explicitly "anthropic".
+                                 # APIs run only when mode is explicitly "openai" or "anthropic";
+                                 # the code under review is then sent to that provider.
   local:                         # any OpenAI-compatible server: vLLM, SGLang, llama.cpp, Ollama
     base_url: http://127.0.0.1:8000/v1
     api_key: EMPTY
@@ -19,7 +20,19 @@ llm:
     cache_metrics_interval_s: 5  # read the servers' prefix (KV) cache counters from /metrics during a run; 0 = off.
                                  # Per-call cached tokens also need vLLM --enable-prompt-tokens-details
     extra_body: {}               # passed through, e.g. {chat_template_kwargs: {enable_thinking: false}}
-  reviewer_model: claude-opus-5-5      # mode: anthropic only
+  openai:                        # mode: openai only. A hosted OpenAI-compatible API
+    base_url: https://api.openai.com/v1
+    api_key_env: OPENAI_API_KEY  # the key is read from this environment variable, never from a file
+    model: ""                    # required: the provider's model id for the reviewers
+    validator_model: ""          # empty = same model; a different one gives an independent re-check
+    temperature: null            # null = not sent (several hosted models accept only their default)
+    max_tokens: 8000
+    token_param: max_completion_tokens   # or max_tokens, for older models and other providers
+    timeout_s: 600
+    json_repair: true
+    context_window: 128000       # tokens; the API does not report it
+    extra_body: {}
+  reviewer_model: claude-opus-5-5      # mode: anthropic only (needs the "anthropic" extra and ANTHROPIC_API_KEY)
   validator_model: claude-sonnet-5-5   # mode: anthropic only
   effort: high
   validator_effort: high

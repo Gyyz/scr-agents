@@ -27,6 +27,7 @@ class FakeServer:
         self.models = models if models is not None else [{"id": "qwen3-local"}]
         self.handler = handler  # callable(body) -> reply dict; used when given
         self.requests = []
+        self.headers = []  # the headers of every POST, in order
         outer = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -50,6 +51,7 @@ class FakeServer:
             def do_POST(self):
                 body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
                 outer.requests.append(body)
+                outer.headers.append(dict(self.headers.items()))
                 if outer.handler is not None:
                     reply = outer.handler(body)
                 elif outer.replies:
@@ -247,11 +249,16 @@ def test_invalid_tool_arguments_and_errors():
 
 
 def test_auto_mode_never_picks_the_online_api(monkeypatch):
-    """``auto`` mode picks offline, never Anthropic, unless a local server answers."""
+    """``auto`` picks offline, never an online API, unless a local server answers."""
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-whatever")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-whatever")
     settings = Settings.load(
         overrides={
-            "llm": {"mode": "auto", "local": {"base_url": "http://127.0.0.1:9/v1"}}
+            "llm": {
+                "mode": "auto",
+                "local": {"base_url": "http://127.0.0.1:9/v1"},
+                "openai": {"model": "some-hosted-model"},
+            }
         }
     )
     assert resolve_mode(settings) == "offline"
@@ -368,3 +375,129 @@ def test_llm_check_also_checks_a_separate_validator_server(monkeypatch, tmp_path
     args = argparse.Namespace(config=str(cfg), base_url="http://x:3/v1", model=None)
     assert cli.cmd_llm(args) == 0
     assert calls == [("reviewer", "http://x:3/v1", "rev")]
+
+
+def _openai_settings(base_url: str, **openai: object) -> Settings:
+    return Settings.load(
+        overrides={
+            "llm": {"mode": "openai", "openai": {"base_url": base_url, **openai}}
+        }
+    )
+
+
+def test_openai_mode_sends_the_environment_key_and_the_hosted_request_fields(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``mode: openai`` reads the key from the environment and adapts the request."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-from-env")
+    with FakeServer([{"message": {"role": "assistant", "content": "ok"}}]) as srv:
+        settings = _openai_settings(
+            srv.base_url, model="hosted-rev", validator_model="hosted-val"
+        )
+        factory, mode = make_backend_factory(settings)
+        assert mode == "openai"
+        reviewer, validator = factory("bugs"), factory("validator")
+        assert (reviewer.model, validator.model) == ("hosted-rev", "hosted-val")
+        assert reviewer.name == "openai" and reviewer.context_window == 128000
+        r = reviewer.complete(
+            system="s", messages=[{"role": "user", "content": "hi"}], tools=[TOOL]
+        )
+        assert r.text() == "ok"
+        (body,) = srv.requests
+        assert body["model"] == "hosted-rev" and body["max_completion_tokens"] == 8000
+        assert "max_tokens" not in body and "temperature" not in body
+        assert srv.headers[0]["Authorization"] == "Bearer sk-from-env"
+
+
+def test_openai_mode_can_send_a_temperature_and_the_older_token_field(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Other hosted OpenAI-compatible APIs keep ``max_tokens`` and a temperature."""
+    monkeypatch.setenv("OTHER_KEY", "k")
+    with FakeServer([{"message": {"role": "assistant", "content": "ok"}}]) as srv:
+        settings = _openai_settings(
+            srv.base_url,
+            model="m",
+            api_key_env="OTHER_KEY",
+            token_param="max_tokens",
+            temperature=0.1,
+        )
+        factory, _ = make_backend_factory(settings)
+        factory("bugs").complete(
+            system="s", messages=[{"role": "user", "content": "hi"}], tools=[]
+        )
+        (body,) = srv.requests
+        assert body["max_tokens"] == 8000 and body["temperature"] == 0.1
+        assert "max_completion_tokens" not in body
+        assert srv.headers[0]["Authorization"] == "Bearer k"
+
+
+def test_openai_mode_needs_a_model_and_a_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A missing model or key stops the run with a message that names the setting."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    with pytest.raises(RuntimeError, match=r"llm\.openai\.model is empty"):
+        make_backend_factory(_openai_settings("http://127.0.0.1:9/v1"))
+    with pytest.raises(RuntimeError, match="OPENAI_API_KEY is not set"):
+        make_backend_factory(_openai_settings("http://127.0.0.1:9/v1", model="m"))
+
+
+def test_llm_check_checks_the_hosted_api_in_openai_mode(
+    monkeypatch: pytest.MonkeyPatch, tmp_path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """``llm check`` tests the hosted reviewer and a different validator model."""
+    import argparse
+
+    from scr_agents import cli
+
+    cfg = tmp_path / "cfg.yaml"
+    cfg.write_text(
+        "llm:\n  mode: openai\n  openai:\n    base_url: http://h:1/v1\n"
+        "    model: rev\n    validator_model: val\n"
+    )
+    calls: list[tuple[str, str, str, bool]] = []
+
+    def fake(settings, role, base_url, model, hosted=False):
+        calls.append((role, base_url, model, hosted))
+        return True
+
+    monkeypatch.setattr(cli, "_check_llm_server", fake)
+    args = argparse.Namespace(config=str(cfg), base_url=None, model=None)
+    assert cli.cmd_llm(args) == 0
+    assert calls == [
+        ("reviewer", "http://h:1/v1", "rev", True),
+        ("validator", "http://h:1/v1", "val", True),
+    ]
+    assert "--mode openai" in capsys.readouterr().out
+
+
+def test_llm_check_reports_a_missing_key_without_calling_the_api(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Without the key the hosted check stops before any request."""
+    from scr_agents import cli
+
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    with FakeServer([]) as srv:
+        settings = _openai_settings(srv.base_url, model="m")
+        assert (
+            cli._check_llm_server(settings, "reviewer", srv.base_url, "m", True)
+            is False
+        )
+        assert srv.requests == []
+    assert "NO KEY (OPENAI_API_KEY is not set)" in capsys.readouterr().out
+
+
+def test_anthropic_mode_says_what_is_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without the SDK or the key the run stops with the fix, before any agent."""
+    import importlib.util
+
+    from scr_agents import pipeline
+
+    settings = Settings.load(overrides={"llm": {"mode": "anthropic"}})
+    monkeypatch.setattr(importlib.util, "find_spec", lambda name: None)
+    with pytest.raises(RuntimeError, match="uv sync --extra anthropic"):
+        make_backend_factory(settings)
+    monkeypatch.setattr(importlib.util, "find_spec", lambda name: object())
+    monkeypatch.setattr(pipeline, "has_anthropic_credentials", lambda: False)
+    with pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY"):
+        make_backend_factory(settings)

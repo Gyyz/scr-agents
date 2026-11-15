@@ -31,7 +31,8 @@ scanners = [
     "ruff>=0.16.5",
 ]
 # Online Anthropic API, used only with `llm.mode: anthropic`, an explicit opt-in.
-# Not part of "full": the default install never needs an online model
+# Not part of "full": the default install never needs an online model.
+# The OpenAI API (`llm.mode: openai`) needs no extra package
 anthropic = [
     "anthropic>=0.80",
 ]
