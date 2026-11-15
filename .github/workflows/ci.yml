@@ -35,7 +35,8 @@ jobs:
           prune-cache: false
           cache-suffix: typecheck
       - run: uv sync --frozen              # full sync so mypy sees runtime dependencies
-      - run: uv run --frozen mypy .
+      # the scope is [tool.mypy] files in pyproject.toml (src and examples), as in the pre-commit hook
+      - run: uv run --frozen mypy
 
   test:
     runs-on: ubuntu-latest
